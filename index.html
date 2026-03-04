@@ -255,26 +255,26 @@
 
             <div id="portal-section">
                 <h1>入口大廳</h1>
-                <h2>歡迎回來</h2>
+                <h2 id="welcome-text">歡迎回來</h2>
                 <p>請選擇您要使用的服務：</p>
                 
                 <div class="portal-grid">
-                    <div class="app-card" onclick="goToApp('game')">
+                    <div id="card-game" class="app-card" onclick="goToApp('game')" style="display: none;">
                         <div class="app-icon">🎮</div>
                         <div class="app-name">單字遊戲</div>
                     </div>
 
-                    <div class="app-card" onclick="goToApp('finance')">
+                    <div id="card-finance" class="app-card" onclick="goToApp('finance')" style="display: none;">
                         <div class="app-icon">💰</div>
                         <div class="app-name">金流管理</div>
                     </div>
 
-                    <div class="app-card" onclick="goToApp('other')">
+                    <div id="card-aibuddy" class="app-card" onclick="goToApp('other')" style="display: none;">
                         <div class="app-icon">📂</div>
                         <div class="app-name">專案資源</div>
                     </div>
                     
-                    <div class="app-card" style="opacity: 0.5; cursor: default;">
+                    <div class="app-card" style="opacity: 0.5; cursor: default; display: flex;">
                         <div class="app-icon">🔨</div>
                         <div class="app-name">建置中...</div>
                     </div>
@@ -298,7 +298,7 @@
     const CLIENT_ID = "5664b8b9b9a45613"; 
     const ENDPOINT = "https://flight-55a43d.authgear.cloud"; 
     
-    // 注意：請確保這裡的網址與你的 Live Server 網址列完全一致
+    // 整合正式版 URL (GitHub Pages)
     const REDIRECT_URI = "https://chiaoweichan.github.io/Portal-System/index.html"; 
 
     async function init() {
@@ -314,12 +314,45 @@
                 window.history.replaceState({}, document.title, window.location.pathname); 
             }
 
-            // === 驗證完成後，關閉 Loading，決定顯示哪個區塊 ===
+            // === 驗證完成後，關閉 Loading ===
             document.getElementById("loading-section").style.display = "none";
 
             if (authgear.sessionState === "AUTHENTICATED") {
                 // 已登入 -> 顯示功能頁
                 document.getElementById("portal-section").style.display = "block";
+
+                // 🌟 向 Authgear 取得使用者的詳細資料
+                const userInfo = await authgear.fetchUserInfo();
+                console.log("登入者詳細資料：", userInfo); 
+
+                // 顯示使用者的 Email
+                if(userInfo.email) {
+                    document.getElementById("welcome-text").innerText = "歡迎回來，" + userInfo.email;
+                }
+
+                // 🌟 抓取角色標籤 (Roles) 並解鎖對應卡片
+                const roles = userInfo.roles || [];
+                console.log("擁有的角色標籤：", roles);
+                
+                if (roles.includes("admin")) {
+                    document.getElementById("card-game").style.display = "flex";
+                    document.getElementById("card-finance").style.display = "flex";
+                    document.getElementById("card-aibuddy").style.display = "flex";
+                } 
+                if (roles.includes("player_game")) {
+                    document.getElementById("card-game").style.display = "flex";
+                    document.getElementById("card-aibuddy").style.display = "flex";
+                } 
+                if (roles.includes("player_finance")) {
+                    document.getElementById("card-finance").style.display = "flex";
+                }
+                if (roles.includes("player_aibuddy")) {
+                    document.getElementById("card-aibuddy").style.display = "flex";
+                }
+                if (roles.length === 0) {
+                    alert("您目前沒有任何權限，請等待管理員分配權限。");
+                }
+
             } else {
                 // 未登入 -> 顯示登入頁
                 document.getElementById("login-section").style.display = "block";
@@ -338,24 +371,23 @@
         await authgear.startAuthentication({ redirectURI: REDIRECT_URI });
     }
 
-    // === 修正後的登出功能：加入 try...finally 確保一定會跳轉 ===
+    // === 登出功能：加入 try...finally 確保一定會跳轉 ===
     window.logout = async function() {
         document.getElementById("portal-section").style.display = "none";
         document.getElementById("loading-section").style.display = "block";
         document.getElementById("loading-text").innerText = "正在登出中...";
 
         try {
-            // 嘗試請求 Authgear 進行標準登出
             await authgear.logout({ redirectURI: REDIRECT_URI });
         } catch (err) {
-            console.error("登出請求失敗 (可能是後台沒設定 Post Logout URI):", err);
+            console.error("登出請求失敗:", err);
         } finally {
-            // 無論成功或失敗，最後都強制重新整理回到首頁
-            // 這行程式碼保證你絕對不會卡在 Loading 畫面
+            // 無論成功或失敗，最後都強制跳轉回首頁，避免卡畫面
             window.location.href = REDIRECT_URI;
         }
     }
 
+    // === 整合完整的應用程式跳轉網址 ===
     window.goToApp = function(appName) {
         if (appName === 'other') {
             window.open("https://sites.google.com/view/aibuddy2025/%E9%A6%96%E9%A0%81", "_blank");
@@ -369,6 +401,6 @@
     }
 
     init();
-</script>
+    </script>
 </body>
 </html>
